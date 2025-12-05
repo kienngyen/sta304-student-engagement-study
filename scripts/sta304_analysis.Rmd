@@ -1,0 +1,354 @@
+---
+title: "sta304_analysis"
+output: html_document
+date: "2024-11-06"
+---
+
+###loading the dataset
+
+```{r}
+# Change the directory to where the dataset is stored when running the code
+library(readr)
+data <- read_csv("../data/survey_respond_clnd.csv")
+```
+
+### Presentation of Data and Statistical Analysis
+
+```{r}
+#Sample Size Calculation - Simple Random Sampling
+library(dplyr)
+library(broom)
+library(gt)
+
+N <- 121
+B = 0.05
+D = (B^2)/4
+  
+#filter out students that participates in any extracurricular activities and  dont work
+student_extra_wrk <- nrow(subset(data, activities_status == 1 & work_time != 0))
+
+#proportion of students that participates in any extracurricular activities and work 
+p1 <- student_extra_wrk/N
+q1 <- 1-p1
+
+#sample size calculation for p
+n1 <- ceiling((N*p1*q1)/((N-1)*D+p1*q1))
+
+#Drawing Simple Random Samples 
+
+#Sample 1 - Set a sample seed so that it saves the sample data
+set.seed(002)
+sample_data1 <- sample_n(data,n1)
+head(sample_data1)
+
+#Two Sample Proportion Test between activity status and work time
+contingency_table <- table(sample_data1$activities_status, sample_data1$work_time2)
+print(contingency_table)
+prop.test(contingency_table) 
+prop_test_sum <- tidy(prop.test(contingency_table))
+gt(prop_test_sum, caption = "Two Sample Proportion Test between Activity Status and Work Time")
+
+
+
+#fail to reject Null hypotheis
+
+```
+```{r}
+#Sample Size Calculation - Simple Random Sampling
+library(dplyr)
+library(broom)
+library(gt)
+N <- 121
+B = 0.05
+D = (B^2)/4
+  
+#filter out students that participates in any extracurricular activities and study less than 4hrs
+student_extra_std <- nrow(subset(data, activities_status == 1 & study_time2 == 0))
+
+#proportion of students that participates in any extracurricular activities and study < 4hrs.
+p2 <- student_extra_std/N
+q2 <- 1-p2
+
+#sample size calculation for p
+n2 <- ceiling((N*p2*q2)/((N-1)*D+p2*q2))
+
+#Drawing Simple Random Samples 
+
+#Sample 2 - Set a sample seed so that it saves the sample data
+set.seed(212)
+sample_data2 <- sample_n(data,n2)
+head(sample_data2)
+
+
+#Two Sample Proportion Test between activity status and study time
+contingency_table2 <- table(sample_data2$activities_status, sample_data2$study_time2)
+print(contingency_table2)
+prop.test(contingency_table2)
+
+prop_test_sum <- tidy(prop.test(contingency_table2))
+gt(prop_test_sum, caption = "Two Sample Proportion Test between Activity Status and Study Time")
+
+
+#fail to reject null hypothesis
+
+
+#conclude: RQ2 can't conlude that studytime and worktime affect activities status
+```
+
+### Simple Test 1 - Simple Linear Regression (Failed gotta do another shit T.T)
+
+```{r}
+
+#Response Variable
+barplot(table(data$activities_status), main="Bar plot of Activities Status",
+        xlab = "Activities Status", ylab = "Frequency",border =NA,col = c("#FF6666","#6699FF"))
+
+#Linearity Assumption
+
+#plot 1: study time vs activities status
+plot(jitter(data$study_time), jitter(data$activities_status), 
+     xlab = "Study Time", ylab = "Activities Status", main = "Study Time vs Activities Status")
+#plot 2: travel time vs activities status
+plot(jitter(data$travel_time), jitter(data$activities_status), 
+     xlab = "Travel Time", ylab = "Activities Status", main = "Travel Time vs Activities Status")
+#plot 3: work_time time vs activities status
+plot(jitter(data$work_time), jitter(data$activities_status), 
+     xlab = "Work Time", ylab = "Activities Status", main = "Work Time vs Activities Status")
+#plot 4: necessity scale vs activities status
+plot(jitter(data$necessity_scale),jitter(data$activities_status),
+     xlab= "Necessity Scale", ylab="Activities status", main = "Necessity Scale vs Activities Status")
+
+#plot 5: supportiveness2 vs activities status
+plot(jitter(data$supportiveness2),jitter(data$activities_status),
+     xlab= "Supportiveness2", ylab="Activities status", main = "Supportiveness2 vs Activities Status")
+
+#plot 5: supportiveness vs activities status
+plot(jitter(data$supportiveness),jitter(data$activities_status),
+     xlab= "Supportiveness2", ylab="Activities status", main = "Supportiveness vs Activities Status")
+
+
+
+
+```
+
+### Advanced Test: Logistic Regression
+
+```{r}
+#No Multicolinearity
+
+#Matrix of potential predictors
+plot(data[,c("study_time","supportiveness","work_time","necessity_scale")],col="cadetblue")  
+
+#VIF factors for each predictor
+
+library(car)
+library(broom)
+model_log0 = glm(activities_status ~ study_time + supportiveness + work_time + necessity_scale, data = data, family = "binomial")
+vif_value <- vif(model_log0)
+vif_df <- tidy(vif_value)
+
+library(gt)
+gt(vif_df,caption = "Variance Inflation Factors (VIF) for each predictor")
+
+#Conclusion since all VIF values almost equal to 1, no correlation between any predictor
+
+```
+
+```{r}
+#Logistic Regression on activity status and necessity scale
+model_log = glm(activities_status ~  necessity_scale, data = data, family = "binomial")
+summary(model_log)
+library(broom)
+library(gt)
+model_log_sumry <- tidy(model_log)
+gt(model_log_sumry, caption = "Logistic Regression between Activity Status and Necessity Scale")
+
+#model coefficients
+coef_intercept = as.numeric(coefficients(model_log)[1])
+# necessity_scale_coef = as.numeric(coefficients(model_log)[2])
+
+#probability across necessity scale
+
+#necessity scale = 1
+odds = exp(coef_intercept+necessity_scale_coef*1)
+probs = odds/(1+odds)
+probs
+
+#necessity scale = 2
+odds = exp(coef_intercept+necessity_scale_coef*2)
+probs = odds/(1+odds)
+probs
+
+#necessity scale = 3
+odds = exp(coef_intercept+necessity_scale_coef*3)
+probs = odds/(1+odds)
+probs
+
+#necessity scale = 4
+odds = exp(coef_intercept+necessity_scale_coef*4)
+probs = odds/(1+odds)
+probs
+
+#necessity scale = 5
+odds = exp(coef_intercept+necessity_scale_coef*5)
+probs = odds/(1+odds)
+probs
+```
+
+
+```{r}
+#Probability of participating in extracurricular activities given necessity scale
+
+# Logistic Regression on activity status and supportiveness
+model_log2 = glm(activities_status ~ supportiveness2, data = data, family = "binomial")
+summary(model_log2)
+library(broom)
+library(gt)
+model_log2_sumry <- tidy(model_log2)
+gt(model_log2_sumry, caption = "Logistic Regression between Activity Status and Supportiveness ")
+
+#model coefficients
+coef_intercept = as.numeric(coefficients(model_log2)[1])
+supportiveness_scale = as.numeric(coefficients(model_log2)[2])
+coef_intercept
+supportiveness_scale
+
+#Probability across all supportiveness levels
+
+#supportiveness = 0
+odds = exp(coef_intercept+supportiveness_scale*0)
+probs = odds/(1+odds)
+probs
+
+#supportiveness = 1
+odds = exp(coef_intercept+supportiveness_scale*1)
+probs = odds/(1+odds)
+probs
+
+```
+
+```{r}
+library(broom)
+library(gt)
+model_log3 = glm(activities_status ~ supportiveness_category + necessity_scale, data = data, family = "binomial")
+summary(model_log3)
+model_log3_sumry <- tidy(model_log3)
+gt(model_log3_sumry, caption = "Multiple Logistic Regression ")
+
+#model coefficients
+coef_intercept = as.numeric(coefficients(model_log3)[1])
+supportiveness_Y = as.numeric(coefficients(model_log3)[2])
+necessity_scale_coef = as.numeric(coefficients(model_log3)[3])
+
+
+#Probability of participating in extracurricular activities given necessity scale and supportiveness 
+
+#If student family is supportive(Y) and necessity scale = 1
+odds = exp(coef_intercept+supportiveness_Y*1+necessity_scale_coef*1)
+probs = odds/(1+odds)
+probs
+
+#If student family is not supportive(N) and necessity scale = 1
+odds = exp(coef_intercept+supportiveness_Y*0+necessity_scale_coef*1)
+probs = odds/(1+odds)
+probs
+
+#If student family is supportive(Y) and necessity scale = 2
+odds = exp(coef_intercept+supportiveness_Y*1+necessity_scale_coef*2)
+probs = odds/(1+odds)
+probs
+
+#If student family is not supportive(N) and necessity scale = 2
+odds = exp(coef_intercept+supportiveness_Y*0+necessity_scale_coef*2)
+probs = odds/(1+odds)
+probs
+
+#If student family is supportive(Y) and necessity scale = 3
+odds = exp(coef_intercept+supportiveness_Y*1+necessity_scale_coef*3)
+probs = odds/(1+odds)
+probs
+
+#If student family is not supportive(N) and necessity scale = 3
+odds = exp(coef_intercept+supportiveness_Y*0+necessity_scale_coef*3)
+probs = odds/(1+odds)
+probs
+
+#If student family is supportive(Y) and necessity scale = 4
+odds = exp(coef_intercept+supportiveness_Y*1+necessity_scale_coef*4)
+probs = odds/(1+odds)
+probs
+
+#If student family is not supportive(N) and necessity scale = 4
+odds = exp(coef_intercept+supportiveness_Y*0+necessity_scale_coef*4)
+probs = odds/(1+odds)
+probs
+
+#If student family is supportive(Y) and necessity scale = 5
+odds = exp(coef_intercept+supportiveness_Y*1+necessity_scale_coef*5)
+probs = odds/(1+odds)
+probs
+
+#If student family is not supportive(N) and necessity scale = 5
+odds = exp(coef_intercept+supportiveness_Y*0+necessity_scale_coef*5)
+probs = odds/(1+odds)
+probs
+
+```
+### Pearson's Chi Square Test
+```{r}
+
+# Create a new column that contains only the first activity
+data_activities_short <- substr(sample_data2$activities, 1, 2)
+
+# Create a contingency table for the two columns
+contingency_table3<- table(sample_data2$favorite_activity,data_activities_short)
+print(contingency_table3)
+
+# Perform the chi-squared independence test
+chi_squared_test <- chisq.test(contingency_table3)
+chi_squared_test$expected
+
+
+
+# Print the results
+library(broom)
+library(gt)
+library(pander)
+
+pander(chi_squared_test$expected, caption = "Expected Values for Pearson's Chi Square Test between Favorite Activity and Activity")
+chi_squared_test_sum <- tidy(chi_squared_test)
+gt(chi_squared_test_sum, caption = "Pearson's Chi Square Test between Favorite Activity and Activity")
+
+#Success to reject the Null Hypothesis
+```
+
+
+### Stacked bar-chart to summarize the open responses 
+```{r}
+library(ggplot2)
+
+# Stacked bar chart
+ggplot(data, aes(x = open_reason, fill = factor(necessity_scale))) +
+  geom_bar(position = "fill") +
+  labs(y = "Proportion", fill = "Likert Scale") +
+  theme_minimal()
+
+library(tidyr)
+
+summary_table <- data %>%
+  group_by(open_reason, necessity_scale) %>%
+  summarise(count = n()) %>%
+  spread(key = necessity_scale, value = count, fill = 0)
+
+print(summary_table)
+```
+
+
+
+
+
+
+
+
+
+
